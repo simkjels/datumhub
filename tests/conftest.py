@@ -10,7 +10,7 @@ import datumhub.database as db_module
 from datumhub.main import app
 
 VALID_PKG = {
-    "id": "simkjels.samples.sampledata",
+    "id": "simkjels/samples/sampledata",
     "version": "0.1.0",
     "title": "Sample Data",
     "publisher": {"name": "Simen Kjelsrud"},

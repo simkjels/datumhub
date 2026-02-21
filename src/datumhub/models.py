@@ -7,8 +7,11 @@ from typing import List, Optional
 
 from pydantic import BaseModel, field_validator
 
-# Must match the CLI's ID_PATTERN
-ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$")
+# Must match the CLI's ID_PATTERN: publisher/namespace/dataset
+# Publisher allows dots for domain-based publishers (e.g. norge.no)
+_SLUG = r"[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+_PUBLISHER = r"[a-z0-9]([a-z0-9.-]*[a-z0-9])?"
+ID_PATTERN = re.compile(rf"^{_PUBLISHER}/{_SLUG}/{_SLUG}$")
 CHECKSUM_PATTERN = re.compile(r"^[a-z0-9]+:[a-f0-9]+$")
 
 
@@ -87,7 +90,8 @@ class PackageIn(BaseModel):
         if not ID_PATTERN.match(v):
             raise ValueError(
                 f"Invalid package id {v!r}. "
-                "Expected publisher.namespace.dataset (three lowercase dot-separated slugs)."
+                "Expected publisher/namespace/dataset "
+                "(slash-separated, publisher may contain dots, e.g. norge.no/population/census)."
             )
         return v
 

@@ -64,9 +64,10 @@ def list_packages(
     )
 
 
-@router.get("/{package_id}/latest", response_model=PackageOut)
-def get_latest(package_id: str) -> PackageOut:
+@router.get("/{publisher}/{namespace}/{dataset}/latest", response_model=PackageOut)
+def get_latest(publisher: str, namespace: str, dataset: str) -> PackageOut:
     """Return the most recently published version of a package."""
+    package_id = f"{publisher}/{namespace}/{dataset}"
     db = get_db()
     row = db.execute(
         """
@@ -84,9 +85,10 @@ def get_latest(package_id: str) -> PackageOut:
     return _row_to_out(row)
 
 
-@router.get("/{package_id}/{version}", response_model=PackageOut)
-def get_package(package_id: str, version: str) -> PackageOut:
+@router.get("/{publisher}/{namespace}/{dataset}/{version}", response_model=PackageOut)
+def get_package(publisher: str, namespace: str, dataset: str, version: str) -> PackageOut:
     """Return a specific version of a package."""
+    package_id = f"{publisher}/{namespace}/{dataset}"
     db = get_db()
     row = db.execute(
         """
@@ -143,16 +145,20 @@ def publish_package(
         (body.id, body.version, user["id"], body.model_dump_json()),
     )
     db.commit()
-    return get_package(body.id, body.version)
+    publisher, namespace, dataset = body.id.split("/")
+    return get_package(publisher, namespace, dataset, body.version)
 
 
-@router.delete("/{package_id}/{version}")
+@router.delete("/{publisher}/{namespace}/{dataset}/{version}")
 def unpublish_package(
-    package_id: str,
+    publisher: str,
+    namespace: str,
+    dataset: str,
     version: str,
     user: dict = Depends(get_current_user),
 ) -> Response:
     """Remove a published package version."""
+    package_id = f"{publisher}/{namespace}/{dataset}"
     db = get_db()
     row = db.execute(
         "SELECT owner_id FROM packages WHERE package_id = ? AND version = ?",
