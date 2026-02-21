@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from datumhub import __version__
 from datumhub.database import init_db
-from datumhub.routes import auth, packages
+from datumhub.routes import auth, catalog, packages
 
 
 @asynccontextmanager
@@ -26,11 +26,7 @@ app = FastAPI(
 
 app.include_router(auth.router)
 app.include_router(packages.router)
-
-
-@app.get("/", tags=["meta"])
-def root() -> dict:
-    return {"name": "DatumHub API", "version": __version__, "docs": "/docs"}
+app.include_router(catalog.router)
 
 
 def run() -> None:
