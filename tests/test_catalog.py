@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 VALID_PKG = {
-    "id": "simkjels/samples/sampledata",
+    "id": "testuser/samples/sampledata",
     "version": "0.1.0",
     "title": "Sample Data",
     "publisher": {"name": "Simen Kjelsrud"},
@@ -33,7 +33,7 @@ class TestCatalogIndex:
         r = auth_client.get("/")
         assert r.status_code == 200
         assert "Sample Data" in r.text
-        assert "simkjels/samples/sampledata" in r.text
+        assert "testuser/samples/sampledata" in r.text
 
     def test_count_reflects_published(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
@@ -56,33 +56,33 @@ class TestCatalogIndex:
     def test_card_links_to_dataset(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
         r = auth_client.get("/")
-        assert "/simkjels/samples/sampledata" in r.text
+        assert "/testuser/samples/sampledata" in r.text
 
 
 class TestCatalogDataset:
     def test_known_dataset_returns_200(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert r.status_code == 200
 
     def test_shows_title(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "Sample Data" in r.text
 
     def test_shows_identifier(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
-        r = auth_client.get("/simkjels/samples/sampledata")
-        assert "simkjels/samples/sampledata" in r.text
+        r = auth_client.get("/testuser/samples/sampledata")
+        assert "testuser/samples/sampledata" in r.text
 
     def test_shows_source_url(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "https://example.com/sample.csv" in r.text
 
     def test_shows_pull_snippet(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "datum pull" in r.text
 
     def test_shows_size_when_present(self, auth_client):
@@ -90,13 +90,13 @@ class TestCatalogDataset:
             {"url": "https://example.com/sample.csv", "format": "csv", "size": 2048}
         ]}
         auth_client.post("/api/v1/packages", json=pkg)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "2.0 KB" in r.text
 
     def test_shows_tags(self, auth_client):
         pkg = {**VALID_PKG, "tags": ["weather", "norway"]}
         auth_client.post("/api/v1/packages", json=pkg)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "weather" in r.text
         assert "norway" in r.text
 
@@ -112,6 +112,6 @@ class TestCatalogDataset:
         auth_client.post("/api/v1/packages", json=VALID_PKG)
         v2 = {**VALID_PKG, "version": "0.2.0"}
         auth_client.post("/api/v1/packages", json=v2)
-        r = auth_client.get("/simkjels/samples/sampledata")
+        r = auth_client.get("/testuser/samples/sampledata")
         assert "0.1.0" in r.text
         assert "0.2.0" in r.text

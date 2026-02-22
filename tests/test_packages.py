@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 VALID_PKG = {
-    "id": "simkjels/samples/sampledata",
+    "id": "testuser/samples/sampledata",
     "version": "0.1.0",
     "title": "Sample Data",
     "publisher": {"name": "Simen Kjelsrud"},
@@ -46,6 +46,11 @@ class TestPublish:
         resp = auth_client.post("/api/v1/packages", json={**VALID_PKG, "sources": []})
         assert resp.status_code == 422
 
+    def test_wrong_publisher_returns_403(self, auth_client):
+        resp = auth_client.post("/api/v1/packages", json={**VALID_PKG, "id": "someone-else/samples/sampledata"})
+        assert resp.status_code == 403
+        assert "publisher" in resp.json()["detail"].lower()
+
 
 class TestGetPackage:
     def test_get_specific_version(self, auth_client):
@@ -57,7 +62,7 @@ class TestGetPackage:
         assert resp.json()["id"] == VALID_PKG["id"]
 
     def test_get_unknown_returns_404(self, client):
-        resp = client.get("/api/v1/packages/simkjels/samples/sampledata/9.9.9")
+        resp = client.get("/api/v1/packages/testuser/samples/sampledata/9.9.9")
         assert resp.status_code == 404
 
     def test_get_latest(self, auth_client):
@@ -68,7 +73,7 @@ class TestGetPackage:
         assert resp.json()["version"] == "0.2.0"
 
     def test_get_latest_unknown_returns_404(self, client):
-        resp = client.get("/api/v1/packages/simkjels/samples/unknown/latest")
+        resp = client.get("/api/v1/packages/testuser/samples/unknown/latest")
         assert resp.status_code == 404
 
 
@@ -132,7 +137,7 @@ class TestGetAllVersions:
         assert data["versions"][0]["version"] == "0.2.0"
 
     def test_unknown_package_returns_404(self, client):
-        resp = client.get("/api/v1/packages/simkjels/samples/unknown")
+        resp = client.get("/api/v1/packages/testuser/samples/unknown")
         assert resp.status_code == 404
 
 
@@ -186,7 +191,7 @@ class TestUnpublish:
         assert resp.status_code == 401
 
     def test_unpublish_unknown_returns_404(self, auth_client):
-        resp = auth_client.delete("/api/v1/packages/simkjels/samples/sampledata/9.9.9")
+        resp = auth_client.delete("/api/v1/packages/testuser/samples/sampledata/9.9.9")
         assert resp.status_code == 404
 
     def test_cannot_unpublish_others_package(self, client, auth_client):

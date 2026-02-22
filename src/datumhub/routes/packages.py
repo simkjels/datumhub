@@ -141,6 +141,13 @@ def publish_package(
     user: dict = Depends(get_current_user),
 ) -> PackageOut:
     """Publish a new dataset (or overwrite with ?force=true)."""
+    publisher, _, _ = body.id.split("/")
+    if publisher != user["username"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Publisher slug '{publisher}' does not match your username '{user['username']}'.",
+        )
+
     db = get_db()
     existing = db.execute(
         "SELECT owner_id FROM packages WHERE package_id = ? AND version = ?",
