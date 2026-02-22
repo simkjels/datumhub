@@ -28,7 +28,7 @@ def _row_to_out(row) -> PackageOut:
 @router.get("", response_model=PackageList)
 def list_packages(
     q: Optional[str] = Query(None, description="Full-text search query"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> PackageList:
     """List or search all published packages."""
