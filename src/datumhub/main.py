@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from datumhub import __version__
 from datumhub.database import init_db
-from datumhub.routes import auth, catalog, packages
+from datumhub.routes import auth, catalog, packages, users
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app = FastAPI(
 
 app.include_router(auth.router)
 app.include_router(packages.router)
+app.include_router(users.router)
 app.include_router(catalog.router)
 
 

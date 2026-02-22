@@ -113,3 +113,18 @@ class PackageList(BaseModel):
     total: int
     limit: int
     offset: int
+    has_next: bool
+    has_prev: bool
+
+
+class PackageVersionList(BaseModel):
+    id: str
+    versions: List[PackageOut]
+    total: int
+
+
+class UserProfile(BaseModel):
+    username: str
+    joined_at: str
+    package_count: int
+    packages: List[PackageOut]

@@ -110,6 +110,54 @@ class TestListPackages:
         assert data["limit"] == 2
 
 
+class TestGetAllVersions:
+    def test_returns_all_versions(self, auth_client):
+        auth_client.post("/api/v1/packages", json=VALID_PKG)
+        auth_client.post("/api/v1/packages", json={**VALID_PKG, "version": "0.2.0"})
+        resp = auth_client.get(f"/api/v1/packages/{VALID_PKG['id']}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 2
+        assert len(data["versions"]) == 2
+
+    def test_returns_id(self, auth_client):
+        auth_client.post("/api/v1/packages", json=VALID_PKG)
+        data = auth_client.get(f"/api/v1/packages/{VALID_PKG['id']}").json()
+        assert data["id"] == VALID_PKG["id"]
+
+    def test_newest_version_first(self, auth_client):
+        auth_client.post("/api/v1/packages", json=VALID_PKG)
+        auth_client.post("/api/v1/packages", json={**VALID_PKG, "version": "0.2.0"})
+        data = auth_client.get(f"/api/v1/packages/{VALID_PKG['id']}").json()
+        assert data["versions"][0]["version"] == "0.2.0"
+
+    def test_unknown_package_returns_404(self, client):
+        resp = client.get("/api/v1/packages/simkjels/samples/unknown")
+        assert resp.status_code == 404
+
+
+class TestListPagination:
+    def test_has_next_true_when_more_results(self, auth_client):
+        for i in range(3):
+            auth_client.post("/api/v1/packages", json={**VALID_PKG, "version": f"0.{i}.0"})
+        data = auth_client.get("/api/v1/packages?limit=2&offset=0").json()
+        assert data["has_next"] is True
+        assert data["has_prev"] is False
+
+    def test_has_prev_true_on_second_page(self, auth_client):
+        for i in range(3):
+            auth_client.post("/api/v1/packages", json={**VALID_PKG, "version": f"0.{i}.0"})
+        data = auth_client.get("/api/v1/packages?limit=2&offset=2").json()
+        assert data["has_prev"] is True
+        assert data["has_next"] is False
+
+    def test_no_next_or_prev_on_single_page(self, auth_client):
+        auth_client.post("/api/v1/packages", json=VALID_PKG)
+        data = auth_client.get("/api/v1/packages").json()
+        assert data["has_next"] is False
+        assert data["has_prev"] is False
+
+
 class TestUnpublish:
     def test_unpublish_returns_204(self, auth_client):
         auth_client.post("/api/v1/packages", json=VALID_PKG)

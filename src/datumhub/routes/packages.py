@@ -10,7 +10,7 @@ from fastapi.responses import Response
 
 from datumhub.auth import get_current_user
 from datumhub.database import get_db
-from datumhub.models import PackageIn, PackageList, PackageOut
+from datumhub.models import PackageIn, PackageList, PackageOut, PackageVersionList
 
 router = APIRouter(prefix="/api/v1/packages", tags=["packages"])
 
@@ -61,7 +61,30 @@ def list_packages(
         total=total,
         limit=limit,
         offset=offset,
+        has_next=offset + limit < total,
+        has_prev=offset > 0,
     )
+
+
+@router.get("/{publisher}/{namespace}/{dataset}", response_model=PackageVersionList)
+def get_all_versions(publisher: str, namespace: str, dataset: str) -> PackageVersionList:
+    """Return all published versions of a package, newest first."""
+    package_id = f"{publisher}/{namespace}/{dataset}"
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT p.data, p.published_at, u.username AS owner
+        FROM packages p
+        JOIN users u ON u.id = p.owner_id
+        WHERE p.package_id = ?
+        ORDER BY p.published_at DESC, p.id DESC
+        """,
+        (package_id,),
+    ).fetchall()
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"Package {package_id!r} not found")
+    versions = [_row_to_out(r) for r in rows]
+    return PackageVersionList(id=package_id, versions=versions, total=len(versions))
 
 
 @router.get("/{publisher}/{namespace}/{dataset}/latest", response_model=PackageOut)
