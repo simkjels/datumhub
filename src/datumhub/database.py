@@ -45,9 +45,10 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
     # A1: add expires_at to api_tokens if not present
     cols = {row[1] for row in conn.execute("PRAGMA table_info(api_tokens)")}
     if "expires_at" not in cols:
+        conn.execute("ALTER TABLE api_tokens ADD COLUMN expires_at TEXT")
         conn.execute(
-            "ALTER TABLE api_tokens ADD COLUMN expires_at TEXT "
-            "NOT NULL DEFAULT (datetime('now', '+90 days'))"
+            "UPDATE api_tokens SET expires_at = datetime(created_at, '+90 days') "
+            "WHERE expires_at IS NULL"
         )
         conn.commit()
 
