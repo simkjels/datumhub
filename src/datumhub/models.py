@@ -128,3 +128,26 @@ class UserProfile(BaseModel):
     joined_at: str
     package_count: int
     packages: List[PackageOut]
+
+
+class SiteStats(BaseModel):
+    datasets: int
+    publishers: int
+    sources: int
+
+
+class PublisherData(BaseModel):
+    publisher: str
+    package_count: int
+    packages: List[PackageOut]
+
+
+class NamespaceData(BaseModel):
+    publisher: str
+    namespace: str
+    packages: List[PackageOut]
+
+
+class SuggestResponse(BaseModel):
+    query: str
+    suggestions: List[str]

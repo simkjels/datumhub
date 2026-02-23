@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from datumhub import __version__
 from datumhub.database import init_db
-from datumhub.routes import auth, catalog, packages, users
+from datumhub.routes import auth, packages, publishers, users
 
 
 @asynccontextmanager
@@ -34,8 +34,8 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(packages.router)
+app.include_router(publishers.router)
 app.include_router(users.router)
-app.include_router(catalog.router)
 
 
 def run() -> None:

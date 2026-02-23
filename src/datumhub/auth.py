@@ -33,6 +33,7 @@ def get_current_user(
         FROM api_tokens t
         JOIN users u ON u.id = t.user_id
         WHERE t.token = ?
+          AND (t.expires_at IS NULL OR t.expires_at > datetime('now'))
         """,
         (credentials.credentials,),
     ).fetchone()

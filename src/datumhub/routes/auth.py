@@ -1,10 +1,10 @@
-"""Auth routes: register and get token."""
+"""Auth routes: register, get token, refresh token."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from datumhub.auth import generate_token
+from datumhub.auth import generate_token, get_current_user
 from datumhub.database import get_db
 from datumhub.models import RegisterIn, TokenIn, TokenOut
 from datumhub.password import hash_password, verify_password
@@ -48,3 +48,16 @@ def get_token(body: TokenIn) -> TokenOut:
     )
     db.commit()
     return TokenOut(token=token)
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh_token(user: dict = Depends(get_current_user)) -> dict:
+    """Exchange a valid (non-expired) token for a fresh one with a new 90-day expiry."""
+    db = get_db()
+    new_token = generate_token()
+    db.execute(
+        "INSERT INTO api_tokens (user_id, token) VALUES (?, ?)",
+        (user["id"], new_token),
+    )
+    db.commit()
+    return {"token": new_token, "expires_in_days": 90}

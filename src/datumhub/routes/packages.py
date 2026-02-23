@@ -1,16 +1,25 @@
-"""Package routes: list, get, publish, unpublish."""
+"""Package routes: list, get, publish, unpublish, suggest."""
 
 from __future__ import annotations
 
+import difflib
 import json
-from typing import Optional
+import re
+import sqlite3
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from datumhub.auth import get_current_user
 from datumhub.database import get_db
-from datumhub.models import PackageIn, PackageList, PackageOut, PackageVersionList
+from datumhub.models import (
+    PackageIn,
+    PackageList,
+    PackageOut,
+    PackageVersionList,
+    SuggestResponse,
+)
 
 router = APIRouter(prefix="/api/v1/packages", tags=["packages"])
 
@@ -20,41 +29,96 @@ def _row_to_out(row) -> PackageOut:
     return PackageOut(**data, published_at=row["published_at"], owner=row["owner"])
 
 
+def _fts_query(q: str) -> str:
+    """Convert a user query into a safe FTS5 MATCH expression.
+
+    Each word gets prefix-match treatment ("word"*) joined with OR so that
+    partial and multi-word queries work naturally.
+    """
+    clean = re.sub(r'[^\w\s]', ' ', q).strip()
+    terms = [t for t in clean.split() if t]
+    if not terms:
+        return '""'
+    return " OR ".join(f'"{t}"*' for t in terms)
+
+
 # ---------------------------------------------------------------------------
 # Read endpoints (public)
 # ---------------------------------------------------------------------------
 
 
+@router.get("/suggest", response_model=SuggestResponse)
+def suggest_packages(
+    q: str = Query(..., min_length=1, description="Partial package ID to match"),
+    n: int = Query(5, ge=1, le=20, description="Maximum number of suggestions"),
+) -> SuggestResponse:
+    """Return up to n package IDs that closely match q."""
+    db = get_db()
+    all_ids: List[str] = [
+        row[0]
+        for row in db.execute(
+            "SELECT DISTINCT package_id FROM packages"
+        ).fetchall()
+    ]
+    matches = difflib.get_close_matches(q, all_ids, n=n, cutoff=0.4)
+    return SuggestResponse(query=q, suggestions=matches)
+
+
 @router.get("", response_model=PackageList)
 def list_packages(
     q: Optional[str] = Query(None, description="Full-text search query"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
     limit: int = Query(20, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> PackageList:
     """List or search all published packages."""
     db = get_db()
-    base_join = """
-        FROM packages p
-        JOIN users u ON u.id = p.owner_id
-    """
+
+    # Build query parts dynamically
+    joins: List[str] = ["JOIN users u ON u.id = p.owner_id"]
+    conditions: List[str] = []
+    params: List = []
+    order_by = "p.published_at DESC"
+
+    # Full-text search via FTS5 with LIKE fallback
     if q:
-        pattern = f"%{q.lower()}%"
-        rows = db.execute(
-            f"SELECT p.data, p.published_at, u.username AS owner {base_join}"
-            " WHERE lower(p.data) LIKE ?"
-            " ORDER BY p.published_at DESC LIMIT ? OFFSET ?",
-            (pattern, limit, offset),
-        ).fetchall()
-        total = db.execute(
-            "SELECT COUNT(*) FROM packages WHERE lower(data) LIKE ?", (pattern,)
-        ).fetchone()[0]
-    else:
-        rows = db.execute(
-            f"SELECT p.data, p.published_at, u.username AS owner {base_join}"
-            " ORDER BY p.published_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
-        ).fetchall()
-        total = db.execute("SELECT COUNT(*) FROM packages").fetchone()[0]
+        try:
+            fts_expr = _fts_query(q)
+            joins.append("JOIN packages_fts ON packages_fts.rowid = p.id")
+            conditions.append("packages_fts MATCH ?")
+            params.append(fts_expr)
+            order_by = "packages_fts.rank"
+            # Smoke-test the FTS expression at query-build time by preparing it
+            db.execute(
+                "SELECT COUNT(*) FROM packages_fts WHERE packages_fts MATCH ?",
+                (fts_expr,),
+            )
+        except sqlite3.OperationalError:
+            # FTS5 unavailable or bad expression — fall back to LIKE
+            joins = ["JOIN users u ON u.id = p.owner_id"]
+            conditions = ["lower(p.data) LIKE ?"]
+            params = [f"%{q.lower()}%"]
+            order_by = "p.published_at DESC"
+
+    # Tag filter (LIKE match on JSON array in data column)
+    if tag:
+        conditions.append("lower(p.data) LIKE ?")
+        params.append(f'%"{tag.lower()}"%')
+
+    joins_sql = " ".join(joins)
+    where_sql = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    rows = db.execute(
+        f"SELECT p.data, p.published_at, u.username AS owner"
+        f" FROM packages p {joins_sql} {where_sql}"
+        f" ORDER BY {order_by} LIMIT ? OFFSET ?",
+        params + [limit, offset],
+    ).fetchall()
+
+    total = db.execute(
+        f"SELECT COUNT(*) FROM packages p {joins_sql} {where_sql}",
+        params,
+    ).fetchone()[0]
 
     return PackageList(
         items=[_row_to_out(r) for r in rows],
